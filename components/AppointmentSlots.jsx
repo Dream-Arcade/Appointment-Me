@@ -1,3 +1,7 @@
-const AppointmentSlots = ({ day }) => {};
+const AppointmentSlots = ({ day }) => {
+
+
+
+};
 
 export default AppointmentSlots;
