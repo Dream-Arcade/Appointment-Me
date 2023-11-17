@@ -1,16 +1,15 @@
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, Text, View } from "react-native";
-import Day from "./components/Day";
 
 import { NavigationContainer } from "@react-navigation/native";
-import DaysScreen from "./components/DaysScreen";
 import { AppointmentsProvider } from "./logic/AppointmentsContext";
+import HomeDrawer from "./components/HomeDrawer";
 
 export default function App() {
   return (
     <AppointmentsProvider>
       <NavigationContainer>
-        <DaysScreen />
+        <HomeDrawer/>
       </NavigationContainer>
     </AppointmentsProvider>
   );

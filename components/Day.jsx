@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
   View,
   Text,
@@ -19,14 +19,9 @@ const Day = ({ day }) => {
     start: null,
     end: null,
   });
+  const { appointmentsByDay, updateAppointments } = useContext(AppointmentsContext);
 
-  const { appointmentsByDay, updateAppointments } =
-    useContext(AppointmentsContext);
 
-  // When updating appointments for this day
-  const handleAppointmentUpdate = (newAppointmentsForDay) => {
-    updateAppointments(day, newAppointmentsForDay);
-  };
 
   const handleSlotSelect = (slot) => {
     // Check if no start time is set or both start and end times are already set for a temporary appointment.
@@ -77,7 +72,12 @@ const Day = ({ day }) => {
           setTempAppointment({ start: null, end: null });
         } else {
           // If the appointment does not overlap, add it to the list of appointments and reset the temporary appointment.
-          setAppointments([...appointments, newAppointment]);
+          const updatedAppointments = [...appointments, newAppointment];
+          setAppointments(updatedAppointments); // Update local state
+  
+          const updatedAppointmentsForDay = [...(appointmentsByDay[day] || []), newAppointment];
+          updateAppointments(day, updatedAppointmentsForDay); // Update context
+
           setTempAppointment({ start: null, end: null });
         }
       }
@@ -112,7 +112,13 @@ const Day = ({ day }) => {
 
   // Function to delete a specific appointment
   const deleteAppointment = (indexToDelete) => {
-    setAppointments(appointments.filter((_, index) => index !== indexToDelete));
+            // Update local state
+            const updatedAppointments = appointments.filter((_, index) => index !== indexToDelete);
+            setAppointments(updatedAppointments);
+    
+            // Update context state
+            const updatedAppointmentsForDay = (appointmentsByDay[day] || []).filter((_, index) => index !== indexToDelete);
+            updateAppointments(day, updatedAppointmentsForDay);
   };
 
   // Checks if a new appointment overlaps with any existing appointments.
@@ -193,19 +199,22 @@ const Day = ({ day }) => {
 
   return (
     <View style={{ flex: 1 }}>
-      {timeSlots.map((slot, index) => (
-        <TouchableOpacity key={index} onPress={() => handleSlotSelect(slot)}>
-          <Text
-            style={{
-              backgroundColor: isSelected(slot)
-                ? getSlotColor(slot)
-                : "#fcffb1",
-            }}
-          >
-            {slot}
-          </Text>
-        </TouchableOpacity>
-      ))}
+      <View>
+
+          {timeSlots.map((slot, index) => (
+            <TouchableOpacity key={index} onPress={() => handleSlotSelect(slot)}>
+              <Text
+                style={{
+                  backgroundColor: isSelected(slot)
+                  ? getSlotColor(slot)
+                  : "#fcffb1",
+                }}
+                >
+                {slot}
+              </Text>
+            </TouchableOpacity>
+          ))}
+      </View>
       <View style={styles.availButtonsClearArea}>
         <View style={styles.availButtonsArea}>
           <View style={styles.textView}>
