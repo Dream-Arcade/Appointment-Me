@@ -2,16 +2,17 @@ import { StatusBar } from "expo-status-bar";
 import { StyleSheet, Text, View } from "react-native";
 import Day from "./components/Day";
 
-export default function App() {
-  const handleSlotSelect = (slot) => {
-    console.log(`Selected slot: ${slot}`);
-    // Handle the slot selection (e.g., set an appointment)
-  };
+import { NavigationContainer } from "@react-navigation/native";
+import DaysScreen from "./components/DaysScreen";
+import { AppointmentsProvider } from "./logic/AppointmentsContext";
 
+export default function App() {
   return (
-    <View style={styles.container}>
-      <Day day={"Monday"} onSlotSelect={handleSlotSelect} />
-    </View>
+    <AppointmentsProvider>
+      <NavigationContainer>
+        <DaysScreen />
+      </NavigationContainer>
+    </AppointmentsProvider>
   );
 }
 
