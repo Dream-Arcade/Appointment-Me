@@ -9,7 +9,7 @@ export default function App() {
   return (
     <AppointmentsProvider>
       <NavigationContainer>
-        <HomeDrawer/>
+        <HomeDrawer />
       </NavigationContainer>
     </AppointmentsProvider>
   );
@@ -18,7 +18,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff",
     alignItems: "center",
     justifyContent: "center",
   },
