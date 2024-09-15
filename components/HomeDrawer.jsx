@@ -1,28 +1,53 @@
-import { createDrawerNavigator } from '@react-navigation/drawer';
-import { View, Text } from 'react-native';
+import React from "react";
+import { createDrawerNavigator } from "@react-navigation/drawer";
+import { createStackNavigator } from "@react-navigation/stack";
+import AppointmentSlots from "./AppointmentSlots";
+import DaysScreenTabs from "./DaysScreenTabs";
+import ScheduleScreen from "./schedulescreen/ScheduleScreen";
 
 const Drawer = createDrawerNavigator();
+const Stack = createStackNavigator();
 
-import DaysScreenTabs from './DaysScreenTabs';
-import AppointmentSlots from './AppointmentSlots';
+const AppointmentSlotsStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="AppointmentSlotsList" component={AppointmentSlots} />
+    <Stack.Screen name="ScheduleScreen" component={ScheduleScreen} />
+  </Stack.Navigator>
+);
 
-function Feed() {
+const DaysScreenTabsStack = () => (
+  <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="DaysScreenTabsList" component={DaysScreenTabs} />
+    <Stack.Screen name="ScheduleScreen" component={ScheduleScreen} />
+  </Stack.Navigator>
+);
+
+const HomeDrawer = () => {
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Feed Screen</Text>
-    </View>
-  );
-}
-
-function HomeDrawer() {
-  return (
-    <Drawer.Navigator>
-      <Drawer.Screen name="Feed" component={Feed} />
-      <Drawer.Screen name="Appointments" component={AppointmentSlots} />
-      <Drawer.Screen name="Set Free Slots" component={DaysScreenTabs} />
+    <Drawer.Navigator
+      screenOptions={{
+        drawerStyle: {
+          backgroundColor: "#f0f4f8",
+        },
+        drawerLabelStyle: {
+          color: "#333",
+        },
+        headerStyle: {
+          backgroundColor: "#f0f4f8",
+        },
+        headerTintColor: "#333",
+        contentStyle: {
+          backgroundColor: "#f0f4f8",
+        },
+      }}
+    >
+      <Drawer.Screen name="Set Free Slots" component={DaysScreenTabsStack} />
+      <Drawer.Screen
+        name="View Appointments"
+        component={AppointmentSlotsStack}
+      />
     </Drawer.Navigator>
   );
-}
+};
 
-
-export default HomeDrawer
+export default HomeDrawer;

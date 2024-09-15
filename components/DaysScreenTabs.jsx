@@ -1,120 +1,73 @@
-import { Text, View } from "react-native";
-import { AppointmentsProvider } from "../logic/AppointmentsContext";
-import Day from "./Day";
-
+import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
-import FontAwesomeIcons from "react-native-vector-icons/FontAwesome";
+import { Ionicons } from "@expo/vector-icons";
+import Day from "./Day";
 
 const Tab = createBottomTabNavigator();
 
-function Monday() {
-  return <Day day={"Monday"} />;
-}
-function Tuesday() {
-  return <Day day={"Tuesday"} />;
-}
-function Wednesday() {
-  return <Day day={"Wednesday"} />;
-}
-function Thursday() {
-  return <Day day={"Thursday"} />;
-}
-function Friday() {
-  return <Day day={"Friday"} />;
-}
-function Saturday() {
-  return <Day day={"Saturday"} />;
-}
+const DaysScreenTabs = () => {
+  const days = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
 
-function Sunday() {
-  return <Day day={"Sunday"} />;
-}
+  const getIconName = (day) => {
+    switch (day) {
+      case "Sunday":
+        return "sunny-outline";
+      case "Monday":
+        return "calendar-outline";
+      case "Tuesday":
+        return "calendar-outline";
+      case "Wednesday":
+        return "calendar-outline";
+      case "Thursday":
+        return "calendar-outline";
+      case "Friday":
+        return "calendar-outline";
+      case "Saturday":
+        return "sunny-outline";
+      default:
+        return "calendar-outline";
+    }
+  };
 
-function DaysScreen() {
   return (
     <Tab.Navigator
-      initialRouteName="Artistri"
-      screenOptions={{
-        tabBarActiveTintColor: "#31d713",
-      }}
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          const iconName = getIconName(route.name);
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: "tomato",
+        tabBarInactiveTintColor: "gray",
+        tabBarStyle: {
+          backgroundColor: "#f0f4f8", // Light blue-gray background for tab bar
+        },
+        headerStyle: {
+          backgroundColor: "#f0f4f8", // Light blue-gray background for header
+        },
+        headerTintColor: "#333", // Dark text color for header
+        contentStyle: {
+          backgroundColor: "#f0f4f8", // Light blue-gray background for content
+        },
+      })}
     >
-      <Tab.Screen
-        name="Monday"
-        component={Monday}
-        options={{
-          tabBarLabel: "Monday",
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesomeIcons name="battery-empty" color={"blue"} size={25} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Tuesday"
-        component={Tuesday}
-        options={{
-          tabBarLabel: "Tuesday",
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesomeIcons name="battery-quarter" color={"blue"} size={25} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Wednesday"
-        component={Wednesday}
-        options={{
-          tabBarLabel: "Wednesday",
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesomeIcons name="battery-half" color={"blue"} size={25} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Thursday"
-        component={Thursday}
-        options={{
-          tabBarLabel: "Thursday",
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesomeIcons
-              name="battery-three-quarters"
-              color={"blue"}
-              size={25}
-            />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Friday"
-        component={Friday}
-        options={{
-          tabBarLabel: "Friday",
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesomeIcons name="battery" color={"blue"} size={25} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Saturday"
-        component={Saturday}
-        options={{
-          tabBarLabel: "Saturday",
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesomeIcons name="battery" color={"blue"} size={25} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Sunday"
-        component={Sunday}
-        options={{
-          tabBarLabel: "Sunday",
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesomeIcons name="battery-half" color={"blue"} size={25} />
-          ),
-        }}
-      />
+      {days.map((day) => (
+        <Tab.Screen
+          key={day}
+          name={day}
+          component={Day}
+          initialParams={{ day: day }}
+        />
+      ))}
     </Tab.Navigator>
   );
-}
+};
 
-export default DaysScreen;
+export default DaysScreenTabs;

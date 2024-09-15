@@ -1,88 +1,111 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
-  Button,
   StyleSheet,
   ScrollView,
-  FlatList,
+  SafeAreaView,
+  Dimensions,
+  Alert,
 } from "react-native";
 import { generateTimeSlots } from "../logic/DayLogic";
 import { AppointmentsContext } from "../logic/AppointmentsContext";
-import DayButton from "../buttons/DayButton";
+import { applyAppointmentsToWeekdays } from "../logic/ApplyAppointments";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import ApplyAppointmentsDrawer from "./appointments/ApplyAppointmentsDrawer";
 
-const Day = ({ day }) => {
+const { width, height } = Dimensions.get("window");
+
+const Day = ({ route }) => {
+  const navigation = useNavigation();
+  const { day } = route.params;
   const timeSlots = generateTimeSlots();
   const [appointments, setAppointments] = useState([]);
   const [tempAppointment, setTempAppointment] = useState({
     start: null,
     end: null,
   });
-  const { appointmentsByDay, updateAppointments } = useContext(AppointmentsContext);
 
+  const { appointmentsByDay, updateAppointments } =
+    useContext(AppointmentsContext);
 
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
 
-  const handleSlotSelect = (slot) => {
-    // Check if no start time is set or both start and end times are already set for a temporary appointment.
-    if (
-      !tempAppointment.start ||
-      (tempAppointment.start && tempAppointment.end)
-    ) {
-      // If the start time is not set or a complete appointment is already selected, treat this as selecting a new start time.
-
-      // Check if the selected start time slot is available (not falling within any existing appointments).
-      if (isSlotAvailable(slot)) {
-        // If the slot is available, set this as the start time and reset the end time.
-        setTempAppointment({ start: slot, end: null });
-      } else {
-        // If the slot is not available, alert the user and do not set the start time.
-        alert(
-          "This start time falls within an existing appointment. Please choose another time."
-        );
-      }
+  useEffect(() => {
+    if (appointmentsByDay && appointmentsByDay[day]) {
+      setAppointments(appointmentsByDay[day]);
     } else {
-      // If a start time is already set and the end time is not, treat this as selecting an end time.
+      setAppointments([]);
+    }
+  }, [appointmentsByDay, day]);
 
-      // Check if the selected end time is the same as the start time.
-      if (tempAppointment.start === slot) {
-        // If the end time is the same as the start time, alert the user and reset the temporary appointment.
-        alert(
-          "End time cannot be the same as start time. Please choose a different end time."
-        );
-        setTempAppointment({ start: null, end: null });
-      }
-      // Check if the selected end time is before the start time.
-      else if (isAfter(tempAppointment.start, slot)) {
-        // If the end time is before the start time, alert the user and reset the temporary appointment.
-        alert(
-          "End time must be later than start time. Please choose another time."
-        );
-        setTempAppointment({ start: null, end: null });
-      } else {
-        // If the selected end time is valid, create a new appointment object.
-        const newAppointment = { start: tempAppointment.start, end: slot };
-
-        // Check if the new appointment overlaps with any existing appointments.
-        if (isOverlapping(newAppointment)) {
-          // If the appointment overlaps, alert the user and reset the temporary appointment.
+  const handleSlotSelect = useCallback(
+    (slot) => {
+      if (
+        !tempAppointment.start ||
+        (tempAppointment.start && tempAppointment.end)
+      ) {
+        if (isSlotAvailable(slot)) {
+          setTempAppointment({ start: slot, end: null });
+        } else {
           alert(
-            "This appointment overlaps with another. Please choose another time."
+            "This start time falls within an existing appointment. Please choose another time."
+          );
+        }
+      } else {
+        if (tempAppointment.start === slot) {
+          alert(
+            "End time cannot be the same as start time. Please choose a different end time."
+          );
+          setTempAppointment({ start: null, end: null });
+        } else if (isAfter(tempAppointment.start, slot)) {
+          alert(
+            "End time must be later than start time. Please choose another time."
           );
           setTempAppointment({ start: null, end: null });
         } else {
-          // If the appointment does not overlap, add it to the list of appointments and reset the temporary appointment.
-          const updatedAppointments = [...appointments, newAppointment];
-          setAppointments(updatedAppointments); // Update local state
-  
-          const updatedAppointmentsForDay = [...(appointmentsByDay[day] || []), newAppointment];
-          updateAppointments(day, updatedAppointmentsForDay); // Update context
-
-          setTempAppointment({ start: null, end: null });
+          const newAppointment = {
+            start: tempAppointment.start,
+            end: slot,
+            clientName: "Client Name", // You'll need to get this from user input
+            clientInfo: "Additional Info", // You'll need to get this from user input
+          };
+          if (isOverlapping(newAppointment)) {
+            alert(
+              "This appointment overlaps with another. Please choose another time."
+            );
+            setTempAppointment({ start: null, end: null });
+          } else {
+            const updatedAppointments = [...appointments, newAppointment];
+            setAppointments(updatedAppointments);
+            updateAppointments(day, updatedAppointments);
+            setTempAppointment({ start: null, end: null });
+          }
         }
       }
-    }
-  };
+    },
+    [tempAppointment, appointments, day, updateAppointments]
+  );
+
+  const clearAppointments = useCallback(() => {
+    setAppointments([]);
+    updateAppointments(day, []);
+  }, [day, updateAppointments]);
+
+  const deleteAppointment = useCallback(
+    (indexToDelete) => {
+      setAppointments((prevAppointments) => {
+        const updatedAppointments = prevAppointments.filter(
+          (_, index) => index !== indexToDelete
+        );
+        updateAppointments(day, updatedAppointments);
+        return updatedAppointments;
+      });
+    },
+    [day, updateAppointments]
+  );
 
   // Helper function to check if the end time is after the start time
   const isAfter = (startTime, endTime) => {
@@ -102,23 +125,6 @@ const Day = ({ day }) => {
       // If the slot time is during an existing appointment, it's not available.
       return slotTime >= existingStart && slotTime < existingEnd;
     });
-  };
-
-  // Clears all existing appointments and resets the temporary appointment selection.
-  const clearAppointments = () => {
-    setAppointments([]);
-    setTempAppointment({ start: null, end: null });
-  };
-
-  // Function to delete a specific appointment
-  const deleteAppointment = (indexToDelete) => {
-            // Update local state
-            const updatedAppointments = appointments.filter((_, index) => index !== indexToDelete);
-            setAppointments(updatedAppointments);
-    
-            // Update context state
-            const updatedAppointmentsForDay = (appointmentsByDay[day] || []).filter((_, index) => index !== indexToDelete);
-            updateAppointments(day, updatedAppointmentsForDay);
   };
 
   // Checks if a new appointment overlaps with any existing appointments.
@@ -181,7 +187,7 @@ const Day = ({ day }) => {
     appointments.forEach((appointment, index) => {
       if (isWithinRange(slot, appointment.start, appointment.end)) {
         // Alternate colors based on the index of the appointment
-        color = index % 2 === 0 ? "pink" : "lavender";
+        color = index % 2 === 0 ? "#90EE90" : "#ADD8E6"; // Light Green and Light Blue
       }
     });
     return color;
@@ -197,79 +203,318 @@ const Day = ({ day }) => {
   // When rendering appointments
   const sortedAppointments = [...appointments].sort(compareAppointments);
 
-  return (
-    <View style={{ flex: 1 }}>
-      <View>
+  const applyToWeekdays = useCallback(() => {
+    Alert.alert(
+      "Apply to Weekdays",
+      "Are you sure you want to apply these appointment slots to all weekdays?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Yes",
+          onPress: () => {
+            applyAppointmentsToWeekdays(day, appointments, updateAppointments);
+            Alert.alert("Success", "Appointments applied to all weekdays.");
+          },
+        },
+      ]
+    );
+  }, [day, appointments, updateAppointments]);
 
-          {timeSlots.map((slot, index) => (
-            <TouchableOpacity key={index} onPress={() => handleSlotSelect(slot)}>
-              <Text
-                style={{
-                  backgroundColor: isSelected(slot)
-                  ? getSlotColor(slot)
-                  : "#fcffb1",
-                }}
-                >
-                {slot}
-              </Text>
-            </TouchableOpacity>
-          ))}
-      </View>
-      <View style={styles.availButtonsClearArea}>
-        <View style={styles.availButtonsArea}>
-          <View style={styles.textView}>
-            <Text>Availability Slots</Text>
-          </View>
-          <ScrollView contentContainerStyle={styles.scrollButtonArea}>
-            {sortedAppointments.map((appointment, index) => (
-              <DayButton
+  const applyToSpecificDay = useCallback(
+    (targetDay) => {
+      Alert.alert(
+        "Apply to " + targetDay,
+        `Are you sure you want to apply these appointment slots to ${targetDay}?`,
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Yes",
+            onPress: () => {
+              updateAppointments(targetDay, [...appointments]);
+              Alert.alert("Success", `Appointments applied to ${targetDay}.`);
+            },
+          },
+        ]
+      );
+    },
+    [appointments, updateAppointments]
+  );
+
+  const handleAppointmentPress = (appointment, index) => {
+    console.log("Navigating to ScheduleScreen with data:", {
+      day,
+      appointmentIndex: index,
+      appointment,
+    });
+    navigation.navigate("ScheduleScreen", {
+      day,
+      appointmentIndex: index,
+      appointment: {
+        ...appointment,
+        clientName: appointment.clientName || "",
+        clientPhone: appointment.clientPhone || "",
+        clientEmail: appointment.clientEmail || "",
+        clientNotes: appointment.clientNotes || "",
+      },
+    });
+  };
+
+  const handleCustomAppointment = () => {
+    navigation.navigate("ScheduleScreen", {
+      day,
+      appointmentIndex: appointments.length,
+      appointment: {
+        start: "",
+        end: "",
+        clientName: "",
+        clientPhone: "",
+        clientEmail: "",
+        clientNotes: "",
+        isCustom: true,
+      },
+    });
+  };
+
+  const handleOpenDrawer = () => {
+    setIsDrawerVisible(true);
+  };
+
+  const handleCloseDrawer = () => {
+    setIsDrawerVisible(false);
+  };
+
+  const handleApplyToDay = (targetDay) => {
+    applyToSpecificDay(targetDay);
+    setIsDrawerVisible(false);
+  };
+
+  const handleApplyToWeekdays = () => {
+    applyToWeekdays();
+    setIsDrawerVisible(false);
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
+        <ScrollView style={styles.timeSlotsScrollView}>
+          <View style={styles.timeSlotsContainer}>
+            {timeSlots.map((slot, index) => (
+              <TouchableOpacity
                 key={index}
-                title={`Time: ${appointment.start} - ${appointment.end}`}
-                onPress={() => deleteAppointment(index)}
-              />
+                onPress={() => handleSlotSelect(slot)}
+                style={[
+                  styles.slotContainer,
+                  isSelected(slot) && { backgroundColor: getSlotColor(slot) },
+                ]}
+              >
+                <Ionicons
+                  name="time-outline"
+                  size={20}
+                  color={isSelected(slot) ? "#fff" : "#4a90e2"}
+                />
+                <Text
+                  style={[
+                    styles.slotText,
+                    isSelected(slot) && styles.selectedSlotText,
+                  ]}
+                >
+                  {slot}
+                </Text>
+              </TouchableOpacity>
             ))}
-          </ScrollView>
+          </View>
+        </ScrollView>
+        <View style={styles.rightContainer}>
+          <View style={styles.appointmentsWrapper}>
+            <Text style={styles.sectionTitle}>Appointments</Text>
+            <ScrollView style={styles.appointmentsList}>
+              {sortedAppointments.length > 0 ? (
+                <>
+                  {sortedAppointments.map((appointment, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.appointmentItem}
+                      onPress={() => handleAppointmentPress(appointment, index)}
+                    >
+                      <Text style={styles.appointmentText}>
+                        {`${appointment.start} - ${appointment.end}`}
+                        {appointment.isCustom ? " (Custom)" : ""}
+                      </Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={24}
+                        color="#4a90e2"
+                      />
+                    </TouchableOpacity>
+                  ))}
+                  <View style={styles.clearButtonContainer}>
+                    <TouchableOpacity
+                      style={styles.clearButton}
+                      onPress={clearAppointments}
+                    >
+                      <Text style={styles.buttonText}>Clear All</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <Text style={styles.noAppointmentsText}>
+                  No appointments scheduled
+                </Text>
+              )}
+            </ScrollView>
+          </View>
         </View>
-        <DayButton
-          title="Clear Slots"
-          onPress={clearAppointments}
-          style={styles.clearButton}
-        />
       </View>
-    </View>
+      <View style={styles.bottomContainer}>
+        <TouchableOpacity
+          style={styles.addCustomButton}
+          onPress={handleCustomAppointment}
+        >
+          <Text style={styles.addCustomButtonText}>Add Custom Appointment</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={handleOpenDrawer}
+        >
+          <Ionicons name="settings-outline" size={24} color="#4a90e2" />
+        </TouchableOpacity>
+      </View>
+      <ApplyAppointmentsDrawer
+        isVisible={isDrawerVisible}
+        onClose={handleCloseDrawer}
+        onApply={handleApplyToDay}
+        onApplyToWeekdays={handleApplyToWeekdays}
+      />
+    </SafeAreaView>
   );
 };
 
-export default Day;
-
 const styles = StyleSheet.create({
-  selectedSlot: {
-    backgroundColor: "lightblue",
-    // Add other styling as needed
+  container: {
+    flex: 1,
+    backgroundColor: "#f0f4f8",
   },
-  buttonArea: {
+  content: {
+    flex: 1,
+    flexDirection: "row",
+  },
+  timeSlotsScrollView: {
+    flex: 1,
+  },
+  timeSlotsContainer: {
+    backgroundColor: "#ffffff",
+    borderRightWidth: 1,
+    borderRightColor: "#e0e0e0",
+  },
+  slotContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+    backgroundColor: "#E6F3FF",
+  },
+  slotText: {
+    marginLeft: 10,
+    fontSize: 16,
+    color: "#333",
+  },
+  selectedSlotText: {
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  rightContainer: {
+    width: width * 0.4,
+    backgroundColor: "#ffffff",
+    borderLeftWidth: 1,
+    borderLeftColor: "#e0e0e0",
+  },
+  appointmentsWrapper: {
+    height: height * 0.6, // Increased height for appointments
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+    color: "#4a90e2",
+    padding: 15,
+  },
+  appointmentsList: {
+    flexGrow: 0,
+    padding: 15,
+  },
+  appointmentItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#e6f2ff",
     padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  appointmentText: {
+    fontSize: 14,
+    color: "#333",
+    flex: 1,
+  },
+  noAppointmentsText: {
+    textAlign: "center",
+    color: "#888",
+    fontSize: 14,
+    fontStyle: "italic",
+  },
+  clearButtonContainer: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
   },
   clearButton: {
-    backgroundColor: "lightblue",
-    width: 350,
-  },
-  textView: {
+    backgroundColor: "#ff6347",
+    padding: 12,
+    borderRadius: 8,
     alignItems: "center",
-    justifyContent: "center",
+  },
+  buttonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  bottomContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 15,
+    backgroundColor: "#f0f4f8",
+    borderTopWidth: 1,
+    borderTopColor: "#e0e0e0",
+  },
+  addCustomButton: {
+    flex: 1,
+    backgroundColor: "#4a90e2",
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
+    marginRight: 10,
+  },
+  addCustomButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  settingsButton: {
     padding: 10,
-  },
-  scrollButtonArea: {
-    padding: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    top: -10,
-  },
-  availButtonsArea: {
-    height: 250,
-    alignItems: "center",
-  },
-  availButtonsClearArea: {
-    alignItems: "center",
+    borderRadius: 8,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#4a90e2",
   },
 });
+
+export default Day;
