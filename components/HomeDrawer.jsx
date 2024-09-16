@@ -41,11 +41,8 @@ const HomeDrawer = () => {
         },
       }}
     >
-      <Drawer.Screen name="Set Free Slots" component={DaysScreenTabsStack} />
-      <Drawer.Screen
-        name="View Appointments"
-        component={AppointmentSlotsStack}
-      />
+      <Drawer.Screen name="Add Appointments" component={DaysScreenTabsStack} />
+      <Drawer.Screen name="Appointments" component={AppointmentSlotsStack} />
     </Drawer.Navigator>
   );
 };

@@ -32,45 +32,101 @@ const AppointmentSlots = () => {
     });
   };
 
+  const handleAddAppointment = () => {
+    const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
+    navigation.navigate("ScheduleScreen", {
+      day: today,
+      appointment: {
+        start: "",
+        end: "",
+        clientName: "",
+        clientPhone: "",
+        clientEmail: "",
+        clientNotes: "",
+        isCustom: true,
+      },
+    });
+  };
+
+  const hasAppointments = Object.values(appointmentsByDay).some(
+    (appointments) => appointments && appointments.length > 0
+  );
+
   return (
     <View style={styles.wholeView}>
-      <ScrollView style={styles.scrollView}>
-        {Object.entries(appointmentsByDay).map(
-          ([day, appointments]) =>
-            appointments &&
-            appointments.length > 0 && (
-              <View key={day} style={styles.dayContainer}>
-                <Text style={styles.dayText}>{day}</Text>
-                {appointments.map((appointment, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.appointmentItem}
-                    onPress={() =>
-                      handleAppointmentPress(day, appointment, index)
-                    }
-                  >
-                    <View style={styles.timeIconContainer}>
-                      <Ionicons name="time-outline" size={24} color="#4a90e2" />
-                      <Text style={styles.appointmentText}>
-                        {`${appointment.start} - ${appointment.end}`}
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={24}
-                      color="#4a90e2"
-                    />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )
-        )}
-      </ScrollView>
+      {hasAppointments ? (
+        <ScrollView style={styles.scrollView}>
+          {Object.entries(appointmentsByDay).map(
+            ([day, appointments]) =>
+              appointments &&
+              appointments.length > 0 && (
+                <View key={day} style={styles.dayContainer}>
+                  <Text style={styles.dayText}>{day}</Text>
+                  {appointments.map((appointment, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.appointmentItem}
+                      onPress={() =>
+                        handleAppointmentPress(day, appointment, index)
+                      }
+                    >
+                      <View style={styles.timeIconContainer}>
+                        <Ionicons
+                          name="time-outline"
+                          size={24}
+                          color="#4a90e2"
+                        />
+                        <Text style={styles.appointmentText}>
+                          {`${appointment.start} - ${appointment.end}`}
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={24}
+                        color="#4a90e2"
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )
+          )}
+        </ScrollView>
+      ) : (
+        <View style={styles.emptyStateContainer}>
+          <Ionicons name="calendar-outline" size={80} color="#4a90e2" />
+          <Text style={styles.emptyStateTitle}>
+            Welcome to Your Appointment Scheduler!
+          </Text>
+          <Text style={styles.emptyStateText}>
+            You don't have any appointments yet. Here's how to get started:
+          </Text>
+          <View style={styles.instructionContainer}>
+            <Ionicons name="add-circle-outline" size={24} color="#4a90e2" />
+            <Text style={styles.instructionText}>
+              Tap the '+' button below to add a new appointment
+            </Text>
+          </View>
+          <View style={styles.instructionContainer}>
+            <Ionicons name="menu-outline" size={24} color="#4a90e2" />
+            <Text style={styles.instructionText}>
+              Use the menu to switch between 'Add Appointments' and
+              'Appointments' views
+            </Text>
+          </View>
+          <View style={styles.instructionContainer}>
+            <Ionicons name="calendar-outline" size={24} color="#4a90e2" />
+            <Text style={styles.instructionText}>
+              In 'Add Appointments', select time slots for each day of the week
+            </Text>
+          </View>
+        </View>
+      )}
+      <TouchableOpacity style={styles.addButton} onPress={handleAddAppointment}>
+        <Ionicons name="add" size={30} color="#fff" />
+      </TouchableOpacity>
     </View>
   );
 };
-
-export default AppointmentSlots;
 
 const styles = StyleSheet.create({
   wholeView: {
@@ -126,4 +182,53 @@ const styles = StyleSheet.create({
     color: "#333",
     marginLeft: 10,
   },
+  addButton: {
+    position: "absolute",
+    right: 20,
+    bottom: 20,
+    backgroundColor: "#4a90e2",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  emptyStateTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#4a90e2",
+    marginTop: 20,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  instructionContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  instructionText: {
+    fontSize: 16,
+    color: "#333",
+    marginLeft: 10,
+    flex: 1,
+  },
 });
+
+export default AppointmentSlots;
