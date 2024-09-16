@@ -4,6 +4,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import AppointmentSlots from "./AppointmentSlots";
 import DaysScreenTabs from "./DaysScreenTabs";
 import ScheduleScreen from "./schedulescreen/ScheduleScreen";
+import AppointmentLog from "./AppointmentLog";
 
 const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
@@ -43,6 +44,7 @@ const HomeDrawer = () => {
     >
       <Drawer.Screen name="Add Appointments" component={DaysScreenTabsStack} />
       <Drawer.Screen name="Appointments" component={AppointmentSlotsStack} />
+      <Drawer.Screen name="Appointment Log" component={AppointmentLog} />
     </Drawer.Navigator>
   );
 };
