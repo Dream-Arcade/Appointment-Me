@@ -110,3 +110,39 @@ export const deleteAppointment = (id) => {
     });
   });
 };
+
+export const subscribeToAppointments = (callback) => {
+  // This is a simple implementation. In a real-world scenario,
+  // you might want to use a more sophisticated method to detect changes.
+  const intervalId = setInterval(callback, 5000); // Check for changes every 5 seconds
+
+  // Return a function to unsubscribe
+  return () => clearInterval(intervalId);
+};
+
+export const deleteAppointmentsForDay = (day) => {
+  return new Promise((resolve, reject) => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        "DELETE FROM appointments WHERE day = ?",
+        [day],
+        (_, result) => resolve(result),
+        (_, error) => reject(error)
+      );
+    });
+  });
+};
+
+// Add this function at the end of the file
+export const clearAllAppointments = () => {
+  return new Promise((resolve, reject) => {
+    db.transaction((tx) => {
+      tx.executeSql(
+        "DELETE FROM appointments",
+        [],
+        (_, result) => resolve(result),
+        (_, error) => reject(error)
+      );
+    });
+  });
+};

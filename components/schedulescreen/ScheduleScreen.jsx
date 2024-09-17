@@ -8,14 +8,15 @@ import {
   ScrollView,
   Alert,
   SafeAreaView,
+  Modal,
 } from "react-native";
 import { AppointmentsContext } from "../../logic/AppointmentsContext";
 import { Ionicons } from "@expo/vector-icons";
 import { saveAppointment, updateAppointment } from "../../logic/SQLite";
 
 const ScheduleScreen = ({ route, navigation }) => {
-  const { day, appointmentIndex, appointment } = route.params || {};
-  const { updateAppointments, appointmentsByDay } =
+  const { day: initialDay, appointmentIndex, appointment } = route.params || {};
+  const { updateAppointments, appointmentsByDay, refreshAppointments } =
     useContext(AppointmentsContext);
 
   const [startTime, setStartTime] = useState("");
@@ -28,6 +29,19 @@ const ScheduleScreen = ({ route, navigation }) => {
   const [clientEmail, setClientEmail] = useState("");
   const [clientNotes, setClientNotes] = useState("");
   const [status, setStatus] = useState("Active");
+  const [selectedDay, setSelectedDay] = useState(initialDay);
+
+  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+
+  const days = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ];
 
   useEffect(() => {
     if (appointment) {
@@ -45,112 +59,59 @@ const ScheduleScreen = ({ route, navigation }) => {
       setClientEmail(appointment.clientEmail || "");
       setClientNotes(appointment.clientNotes || "");
       setStatus(appointment.status || "Active");
+      setSelectedDay(appointment.day || initialDay);
     }
-  }, [appointment]);
+  }, [appointment, initialDay]);
 
-  const isOverlapping = (newStart, newEnd) => {
-    const newStartTime = convertTo24HourFormat(`${newStart} ${startPeriod}`);
-    const newEndTime = convertTo24HourFormat(`${newEnd} ${endPeriod}`);
-
-    const overlappingAppointment = appointmentsByDay[day]?.find(
-      (appointment) => {
-        const existingStart = convertTo24HourFormat(appointment.start);
-        const existingEnd = convertTo24HourFormat(appointment.end);
-
-        return (
-          (newStartTime >= existingStart && newStartTime < existingEnd) ||
-          (newEndTime > existingStart && newEndTime <= existingEnd) ||
-          (newStartTime <= existingStart && newEndTime >= existingEnd)
-        );
-      }
-    );
-
-    return overlappingAppointment;
-  };
-
-  const convertTo24HourFormat = (time) => {
-    const [hours, minutesPart] = time.split(":");
-    const [minutes, period] = minutesPart.split(" ");
-    let hour = parseInt(hours, 10);
-
-    if (period === "PM" && hour !== 12) {
-      hour += 12;
-    } else if (period === "AM" && hour === 12) {
-      hour = 0;
-    }
-
-    return hour * 60 + parseInt(minutes, 10);
-  };
-
-  const handleSave = () => {
-    if (!startTime || !endTime || !appointmentDate) {
-      Alert.alert("Error", "Please enter start time, end time, and date.");
+  const handleSave = async () => {
+    if (!startTime || !endTime || !appointmentDate || !selectedDay) {
+      Alert.alert("Error", "Please enter start time, end time, date, and day.");
       return;
     }
 
-    const overlappingAppointment = isOverlapping(startTime, endTime);
-    if (overlappingAppointment) {
-      Alert.alert(
-        "Overlapping Appointment",
-        `This appointment overlaps with an existing appointment from ${overlappingAppointment.start} to ${overlappingAppointment.end}. What would you like to do?`,
-        [
-          {
-            text: "Keep Existing",
-            style: "cancel",
-          },
-          {
-            text: "Replace Existing",
-            onPress: () => {
-              // Remove the overlapping appointment
-              const updatedAppointments = appointmentsByDay[day].filter(
-                (apt) => apt !== overlappingAppointment
-              );
-
-              // Add the new appointment
-              const newAppointment = {
-                start: `${startTime} ${startPeriod}`,
-                end: `${endTime} ${endPeriod}`,
-                date: appointmentDate,
-                clientName,
-                clientPhone,
-                clientEmail,
-                clientNotes,
-                isCustom: appointment?.isCustom,
-                status,
-              };
-              updatedAppointments.push(newAppointment);
-
-              // Update the context
-              updateAppointments(day, updatedAppointments);
-              navigation.goBack();
-            },
-          },
-        ]
-      );
-      return;
-    }
-
-    // If no overlap, proceed with saving as before
     const updatedAppointment = {
       start: `${startTime} ${startPeriod}`,
       end: `${endTime} ${endPeriod}`,
       date: appointmentDate,
+      day: selectedDay,
       clientName,
       clientPhone,
       clientEmail,
       clientNotes,
-      isCustom: appointment?.isCustom,
       status,
     };
 
-    const updatedAppointments = [...(appointmentsByDay[day] || [])];
-    if (appointmentIndex !== undefined) {
-      updatedAppointments[appointmentIndex] = updatedAppointment;
-    } else {
-      updatedAppointments.push(updatedAppointment);
+    try {
+      if (appointment && appointment.id) {
+        await updateAppointment(appointment.id, updatedAppointment);
+      } else {
+        await saveAppointment(updatedAppointment);
+      }
+
+      // Remove the appointment from the old day if it was changed
+      if (initialDay !== selectedDay) {
+        const oldDayAppointments = appointmentsByDay[initialDay] || [];
+        const updatedOldDayAppointments = oldDayAppointments.filter(
+          (app) => app.id !== appointment?.id
+        );
+        updateAppointments(initialDay, updatedOldDayAppointments);
+      }
+
+      // Update the appointments for the selected day
+      const dayAppointments = appointmentsByDay[selectedDay] || [];
+      const updatedDayAppointments = appointment?.id
+        ? dayAppointments.map((app) =>
+            app.id === appointment.id ? updatedAppointment : app
+          )
+        : [...dayAppointments, updatedAppointment];
+      updateAppointments(selectedDay, updatedDayAppointments);
+
+      await refreshAppointments();
+      navigation.goBack();
+    } catch (error) {
+      console.error("Error saving appointment:", error);
+      Alert.alert("Error", "Failed to save appointment. Please try again.");
     }
-    updateAppointments(day, updatedAppointments);
-    navigation.goBack();
   };
 
   const setTodayDate = () => {
@@ -170,7 +131,7 @@ const ScheduleScreen = ({ route, navigation }) => {
     }
 
     const appointmentToLog = {
-      day,
+      day: selectedDay,
       start: `${startTime} ${startPeriod}`,
       end: `${endTime} ${endPeriod}`,
       date: appointmentDate,
@@ -197,6 +158,19 @@ const ScheduleScreen = ({ route, navigation }) => {
       "The appointment has been marked as cancelled."
     );
   };
+
+  const renderDropdownItem = (day) => (
+    <TouchableOpacity
+      key={day}
+      style={styles.dropdownItem}
+      onPress={() => {
+        setSelectedDay(day);
+        setIsDropdownVisible(false);
+      }}
+    >
+      <Text style={styles.dropdownItemText}>{day}</Text>
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -245,6 +219,16 @@ const ScheduleScreen = ({ route, navigation }) => {
               </TouchableOpacity>
             </View>
           </View>
+        </View>
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Day:</Text>
+          <TouchableOpacity
+            style={styles.dropdownButton}
+            onPress={() => setIsDropdownVisible(true)}
+          >
+            <Text style={styles.dropdownButtonText}>{selectedDay}</Text>
+            <Ionicons name="chevron-down" size={24} color="#4a90e2" />
+          </TouchableOpacity>
         </View>
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Date:</Text>
@@ -300,12 +284,7 @@ const ScheduleScreen = ({ route, navigation }) => {
             numberOfLines={4}
           />
         </View>
-        <View style={styles.statusContainer}>
-          <Text style={styles.label}>Status:</Text>
-          <Text style={[styles.statusText, styles[status.toLowerCase()]]}>
-            {status}
-          </Text>
-        </View>
+
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
           <Text style={styles.saveButtonText}>Save Appointment</Text>
         </TouchableOpacity>
@@ -321,6 +300,17 @@ const ScheduleScreen = ({ route, navigation }) => {
           </TouchableOpacity>
         )}
       </ScrollView>
+      <Modal
+        visible={isDropdownVisible}
+        transparent={true}
+        animationType="slide"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ScrollView>{days.map(renderDropdownItem)}</ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -357,6 +347,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333",
     marginBottom: 5,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    backgroundColor: "#ffffff",
+    overflow: "hidden",
+  },
+  picker: {
+    height: 60,
+    width: "100%",
+    height: "60%",
   },
   input: {
     backgroundColor: "#ffffff",
@@ -483,6 +485,42 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  dropdownButton: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  dropdownButtonText: {
+    fontSize: 16,
+    color: "#333",
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+  },
+  modalContent: {
+    backgroundColor: "#ffffff",
+    borderRadius: 8,
+    padding: 20,
+    width: "80%",
+    maxHeight: "80%",
+  },
+  dropdownItem: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    color: "#333",
   },
 });
 

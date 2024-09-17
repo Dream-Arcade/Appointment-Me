@@ -22,24 +22,21 @@ const Day = ({ route }) => {
   const navigation = useNavigation();
   const { day } = route.params;
   const timeSlots = generateTimeSlots();
-  const [appointments, setAppointments] = useState([]);
   const [tempAppointment, setTempAppointment] = useState({
     start: null,
     end: null,
   });
 
-  const { appointmentsByDay, updateAppointments } =
-    useContext(AppointmentsContext);
+  const {
+    appointmentsByDay,
+    updateAppointments,
+    clearAppointmentsForDay,
+    clearAllAppointmentsAndRefresh,
+  } = useContext(AppointmentsContext);
+
+  const appointments = appointmentsByDay[day] || [];
 
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
-
-  useEffect(() => {
-    if (appointmentsByDay && appointmentsByDay[day]) {
-      setAppointments(appointmentsByDay[day]);
-    } else {
-      setAppointments([]);
-    }
-  }, [appointmentsByDay, day]);
 
   const handleSlotSelect = useCallback(
     (slot) => {
@@ -69,8 +66,9 @@ const Day = ({ route }) => {
           const newAppointment = {
             start: tempAppointment.start,
             end: slot,
-            clientName: "Client Name", // You'll need to get this from user input
-            clientInfo: "Additional Info", // You'll need to get this from user input
+            day,
+            clientName: "Client Name",
+            clientInfo: "Additional Info",
           };
           if (isOverlapping(newAppointment)) {
             alert(
@@ -78,8 +76,10 @@ const Day = ({ route }) => {
             );
             setTempAppointment({ start: null, end: null });
           } else {
-            const updatedAppointments = [...appointments, newAppointment];
-            setAppointments(updatedAppointments);
+            const updatedAppointments = appointments.filter(
+              (app) => app.start !== newAppointment.start
+            );
+            updatedAppointments.push(newAppointment);
             updateAppointments(day, updatedAppointments);
             setTempAppointment({ start: null, end: null });
           }
@@ -90,21 +90,38 @@ const Day = ({ route }) => {
   );
 
   const clearAppointments = useCallback(() => {
-    setAppointments([]);
-    updateAppointments(day, []);
-  }, [day, updateAppointments]);
+    Alert.alert(
+      "Clear All Appointments",
+      "Are you sure you want to clear all appointments for this day?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Clear Day",
+          onPress: async () => {
+            await clearAppointmentsForDay(day);
+          },
+        },
+        {
+          text: "Clear All Days",
+          onPress: async () => {
+            await clearAllAppointmentsAndRefresh();
+          },
+        },
+      ]
+    );
+  }, [day, clearAppointmentsForDay, clearAllAppointmentsAndRefresh]);
 
   const deleteAppointment = useCallback(
     (indexToDelete) => {
-      setAppointments((prevAppointments) => {
-        const updatedAppointments = prevAppointments.filter(
-          (_, index) => index !== indexToDelete
-        );
-        updateAppointments(day, updatedAppointments);
-        return updatedAppointments;
-      });
+      const updatedAppointments = appointments.filter(
+        (_, index) => index !== indexToDelete
+      );
+      updateAppointments(day, updatedAppointments);
     },
-    [day, updateAppointments]
+    [day, appointments, updateAppointments]
   );
 
   // Helper function to check if the end time is after the start time

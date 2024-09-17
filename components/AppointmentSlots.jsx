@@ -1,5 +1,4 @@
-import React, { useContext } from "react";
-import { AppointmentsContext } from "../logic/AppointmentsContext";
+import React from "react";
 import {
   View,
   Text,
@@ -7,11 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
+import { useAppointments } from "../logic/AppointmentsContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
 const AppointmentSlots = () => {
-  const { appointmentsByDay } = useContext(AppointmentsContext);
+  const { appointmentsByDay, clearNullDayAppointments } = useAppointments();
   const navigation = useNavigation();
 
   if (!appointmentsByDay) {
@@ -124,6 +124,17 @@ const AppointmentSlots = () => {
       <TouchableOpacity style={styles.addButton} onPress={handleAddAppointment}>
         <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
+      {appointmentsByDay["unassigned"] &&
+        appointmentsByDay["unassigned"].length > 0 && (
+          <TouchableOpacity
+            style={styles.clearButton}
+            onPress={clearNullDayAppointments}
+          >
+            <Text style={styles.clearButtonText}>
+              Clear Unassigned Appointments
+            </Text>
+          </TouchableOpacity>
+        )}
     </View>
   );
 };
@@ -228,6 +239,17 @@ const styles = StyleSheet.create({
     color: "#333",
     marginLeft: 10,
     flex: 1,
+  },
+  clearButton: {
+    backgroundColor: "#ff6347",
+    padding: 10,
+    borderRadius: 5,
+    margin: 10,
+    alignItems: "center",
+  },
+  clearButtonText: {
+    color: "white",
+    fontWeight: "bold",
   },
 });
 
