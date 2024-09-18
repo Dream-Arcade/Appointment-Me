@@ -226,9 +226,16 @@ const AppointmentLog = () => {
                 : "checkmark-circle-outline"
             }
             size={20}
-            color="#fff"
+            color={item.status === "Done" ? "#17a2b8" : "#28a745"}
           />
-          <Text style={styles.buttonText}>
+          <Text
+            style={[
+              styles.buttonText,
+              item.status === "Done"
+                ? styles.activeButtonText
+                : styles.doneButtonText,
+            ]}
+          >
             {item.status === "Done" ? "Active" : "Done"}
           </Text>
         </TouchableOpacity>
@@ -237,16 +244,20 @@ const AppointmentLog = () => {
             style={[styles.button, styles.cancelledButton]}
             onPress={() => handleStatusChange(item, "Cancelled")}
           >
-            <Ionicons name="close-circle-outline" size={20} color="#fff" />
-            <Text style={styles.buttonText}>Cancelled</Text>
+            <Ionicons name="close-circle-outline" size={20} color="#ffc107" />
+            <Text style={[styles.buttonText, styles.cancelledButtonText]}>
+              Cancel
+            </Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity
           style={[styles.button, styles.deleteButton]}
           onPress={() => handleDelete(item.id)}
         >
-          <Ionicons name="trash-outline" size={20} color="#fff" />
-          <Text style={styles.buttonText}>Delete</Text>
+          <Ionicons name="trash-outline" size={20} color="#dc3545" />
+          <Text style={[styles.buttonText, styles.deleteButtonText]}>
+            Delete
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -414,32 +425,50 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 15,
+    marginTop: 10,
   },
   button: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    padding: 10,
-    borderRadius: 8,
+    padding: 8,
+    borderRadius: 20,
     flex: 1,
     marginHorizontal: 4,
-    elevation: 2,
+    borderWidth: 1,
   },
   buttonText: {
-    color: "#fff",
     fontWeight: "bold",
     marginLeft: 5,
     fontSize: 12,
   },
   activeButton: {
-    backgroundColor: "#17a2b8",
+    backgroundColor: "rgba(23, 162, 184, 0.1)",
+    borderColor: "#17a2b8",
+  },
+  activeButtonText: {
+    color: "#17a2b8",
+  },
+  doneButton: {
+    backgroundColor: "rgba(40, 167, 69, 0.1)",
+    borderColor: "#28a745",
+  },
+  doneButtonText: {
+    color: "#28a745",
   },
   cancelledButton: {
-    backgroundColor: "#ffc107",
+    backgroundColor: "rgba(255, 193, 7, 0.1)",
+    borderColor: "#ffc107",
+  },
+  cancelledButtonText: {
+    color: "#ffc107",
   },
   deleteButton: {
-    backgroundColor: "#dc3545",
+    backgroundColor: "rgba(220, 53, 69, 0.1)",
+    borderColor: "#dc3545",
+  },
+  deleteButtonText: {
+    color: "#dc3545",
   },
   summaryContainer: {
     backgroundColor: "#fff",
@@ -456,9 +485,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 5,
     color: "#333",
-  },
-  doneButton: {
-    backgroundColor: "#28a745", // Green for Done
   },
   centerContent: {
     justifyContent: "center",

@@ -20,8 +20,13 @@ import {
 
 const ScheduleScreen = ({ route, navigation }) => {
   const { day: initialDay, appointmentIndex, appointment } = route.params || {};
-  const { updateAppointments, appointmentsByDay, refreshAppointments } =
-    useContext(AppointmentsContext);
+  const {
+    updateAppointments,
+    appointmentsByDay,
+    refreshAppointments,
+    updateAppointment,
+    deleteAppointmentAndRefresh,
+  } = useContext(AppointmentsContext);
 
   const [startTime, setStartTime] = useState("");
   const [startPeriod, setStartPeriod] = useState("AM");
@@ -216,6 +221,7 @@ const ScheduleScreen = ({ route, navigation }) => {
     }
 
     const appointmentToLog = {
+      id: appointment?.id, // Include the id if it exists
       day: selectedDay,
       start: `${startTime} ${startPeriod}`,
       end: `${endTime} ${endPeriod}`,
@@ -228,42 +234,70 @@ const ScheduleScreen = ({ route, navigation }) => {
     };
 
     try {
-      // Check if an appointment with the same details already exists
-      const existingAppointments = await getAppointments();
-      const isDuplicate = existingAppointments.some(
-        (app) =>
-          app.day === appointmentToLog.day &&
-          app.start === appointmentToLog.start &&
-          app.end === appointmentToLog.end &&
-          app.date === appointmentToLog.date &&
-          app.clientName === appointmentToLog.clientName
-      );
-
-      if (isDuplicate) {
-        Alert.alert(
-          "Duplicate Appointment",
-          "This appointment has already been logged."
-        );
-        return;
+      if (appointment?.id) {
+        // If the appointment exists, update its status to "Done"
+        await updateAppointment(appointment.id, appointmentToLog);
+        Alert.alert("Success", "Appointment marked as done.");
+      } else {
+        // If it's a new appointment, save it as done
+        await saveAppointment(appointmentToLog);
+        Alert.alert("Success", "New completed appointment logged.");
       }
 
-      // If not a duplicate, proceed with saving the appointment
-      await saveAppointment(appointmentToLog);
+      // Remove the appointment from active appointments
+      if (appointment?.id) {
+        await deleteAppointmentAndRefresh(appointment.id);
+      }
+
       await refreshAppointments();
-      Alert.alert("Success", "Appointment logged successfully!");
       navigation.goBack();
     } catch (error) {
-      console.error("Error logging appointment:", error);
+      console.error("Error logging appointment as done:", error);
       Alert.alert("Error", "Failed to log appointment. Please try again.");
     }
   };
 
-  const handleCancel = () => {
-    setStatus("Cancelled");
-    Alert.alert(
-      "Appointment Cancelled",
-      "The appointment has been marked as cancelled."
-    );
+  const handleLogAsCancelled = async () => {
+    if (!startTime || !endTime || !appointmentDate || !selectedDay) {
+      Alert.alert("Error", "Please enter start time, end time, date, and day.");
+      return;
+    }
+
+    const appointmentToLog = {
+      id: appointment?.id, // Include the id if it exists
+      day: selectedDay,
+      start: `${startTime} ${startPeriod}`,
+      end: `${endTime} ${endPeriod}`,
+      date: appointmentDate,
+      clientName,
+      clientPhone,
+      clientEmail,
+      clientNotes,
+      status: "Cancelled",
+    };
+
+    try {
+      if (appointment?.id) {
+        // If the appointment exists, update its status to "Cancelled"
+        await updateAppointment(appointment.id, appointmentToLog);
+        Alert.alert("Success", "Appointment marked as cancelled.");
+      } else {
+        // If it's a new appointment, save it as cancelled
+        await saveAppointment(appointmentToLog);
+        Alert.alert("Success", "New cancelled appointment logged.");
+      }
+
+      // Remove the appointment from active appointments
+      if (appointment?.id) {
+        await deleteAppointmentAndRefresh(appointment.id);
+      }
+
+      await refreshAppointments();
+      navigation.goBack();
+    } catch (error) {
+      console.error("Error logging appointment as cancelled:", error);
+      Alert.alert("Error", "Failed to log appointment. Please try again.");
+    }
   };
 
   const renderDropdownItem = (day) => (
@@ -395,11 +429,14 @@ const ScheduleScreen = ({ route, navigation }) => {
         >
           <Text style={styles.logButtonText}>Log Appointment as Done</Text>
         </TouchableOpacity>
-        {status !== "Cancelled" && (
-          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-            <Text style={styles.cancelButtonText}>Cancel Appointment</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={handleLogAsCancelled}
+        >
+          <Text style={styles.cancelButtonText}>
+            Log Appointment as Cancelled
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
       <Modal
         visible={isDropdownVisible}

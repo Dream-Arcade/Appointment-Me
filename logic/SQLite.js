@@ -30,49 +30,108 @@ export const initDB = () => {
 
 export const saveAppointment = (appointment) => {
   return new Promise((resolve, reject) => {
-    activeDB.transaction((tx) => {
+    const db = appointment.status === "Active" ? activeDB : archivedDB;
+    const table =
+      appointment.status === "Active"
+        ? "appointments"
+        : "archived_appointments";
+
+    db.transaction((tx) => {
       // Check if an appointment with the same details already exists
       tx.executeSql(
-        "SELECT * FROM appointments WHERE day = ? AND start = ? AND end = ? AND date = ?",
+        "SELECT * FROM " +
+          table +
+          " WHERE day = ? AND start = ? AND end = ? AND date = ?",
         [appointment.day, appointment.start, appointment.end, appointment.date],
         (_, { rows }) => {
           if (rows.length > 0) {
             console.log("Appointment already exists, not saving duplicate");
             resolve(rows.item(0));
           } else {
-            tx.executeSql(
-              "INSERT INTO appointments (day, start, end, date, clientName, clientPhone, clientEmail, clientNotes, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-              [
-                appointment.day,
-                appointment.start,
-                appointment.end,
-                appointment.date,
-                appointment.clientName,
-                appointment.clientPhone,
-                appointment.clientEmail,
-                appointment.clientNotes,
-                "Active", // Always set status to "Active" for new appointments
-              ],
-              (_, result) => {
-                const savedAppointment = {
-                  ...appointment,
-                  id: result.insertId,
-                  status: "Active",
-                };
-                console.log(
-                  "Appointment saved to active database:",
-                  savedAppointment
-                );
-                resolve(savedAppointment);
-              },
-              (_, error) => {
-                console.error(
-                  "Error saving appointment to active database:",
-                  error
-                );
-                reject(error);
-              }
-            );
+            // For non-Active appointments, get the maximum id
+            if (appointment.status !== "Active") {
+              tx.executeSql(
+                "SELECT MAX(id) as maxId FROM " + table,
+                [],
+                (_, { rows }) => {
+                  const maxId = rows.item(0).maxId || 0;
+                  const newId = maxId + 1;
+
+                  tx.executeSql(
+                    "INSERT INTO " +
+                      table +
+                      " (id, day, start, end, date, clientName, clientPhone, clientEmail, clientNotes, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    [
+                      newId,
+                      appointment.day,
+                      appointment.start,
+                      appointment.end,
+                      appointment.date,
+                      appointment.clientName,
+                      appointment.clientPhone,
+                      appointment.clientEmail,
+                      appointment.clientNotes,
+                      appointment.status,
+                    ],
+                    (_, result) => {
+                      const savedAppointment = {
+                        ...appointment,
+                        id: newId,
+                      };
+                      console.log(
+                        "Appointment saved to database:",
+                        savedAppointment
+                      );
+                      resolve(savedAppointment);
+                    },
+                    (_, error) => {
+                      console.error(
+                        "Error saving appointment to database:",
+                        error
+                      );
+                      reject(error);
+                    }
+                  );
+                },
+                (_, error) => {
+                  console.error("Error getting max id:", error);
+                  reject(error);
+                }
+              );
+            } else {
+              // For Active appointments, use the existing logic
+              tx.executeSql(
+                "INSERT INTO " +
+                  table +
+                  " (day, start, end, date, clientName, clientPhone, clientEmail, clientNotes, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [
+                  appointment.day,
+                  appointment.start,
+                  appointment.end,
+                  appointment.date,
+                  appointment.clientName,
+                  appointment.clientPhone,
+                  appointment.clientEmail,
+                  appointment.clientNotes,
+                  appointment.status,
+                ],
+                (_, result) => {
+                  const savedAppointment = {
+                    ...appointment,
+                    id: result.insertId,
+                  };
+                  console.log(
+                    "Appointment saved to database:",
+                    savedAppointment
+                  );
+                  resolve(savedAppointment);
+                },
+                (_, error) => {
+                  console.error("Error saving appointment to database:", error);
+                  reject(error);
+                }
+              );
+            }
           }
         },
         (_, error) => {
@@ -119,7 +178,7 @@ export const getAppointments = (status = "Active") => {
   return new Promise((resolve, reject) => {
     db.transaction((tx) => {
       tx.executeSql(
-        `SELECT * FROM ${table}`,
+        `SELECT * FROM ${table} ORDER BY date DESC, start DESC`,
         [],
         (_, { rows: { _array } }) => resolve(_array),
         (_, error) => reject(error)
