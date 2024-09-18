@@ -65,18 +65,28 @@ const ScheduleScreen = ({ route, navigation }) => {
     let daysToAdd = selectedDayIndex - currentDayIndex;
     if (daysToAdd < 0) daysToAdd += 7;
 
-    const defaultDate = new Date(today);
-    defaultDate.setDate(today.getDate() + daysToAdd);
-
-    console.log("Today's date:", today.toISOString().split("T")[0]);
-    console.log("Current day:", days[currentDayIndex]);
-    console.log("Selected day:", selectedDay);
-    console.log(
-      "Calculated default date:",
-      defaultDate.toISOString().split("T")[0]
+    const defaultDate = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() + daysToAdd
     );
 
-    return defaultDate.toISOString().split("T")[0]; // Format as YYYY-MM-DD
+    const formattedDate = `${defaultDate.getFullYear()}-${String(
+      defaultDate.getMonth() + 1
+    ).padStart(2, "0")}-${String(defaultDate.getDate()).padStart(2, "0")}`;
+
+    console.log(
+      "Today's date:",
+      `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(
+        2,
+        "0"
+      )}-${String(today.getDate()).padStart(2, "0")}`
+    );
+    console.log("Current day:", days[currentDayIndex]);
+    console.log("Selected day:", selectedDay);
+    console.log("Calculated default date:", formattedDate);
+
+    return formattedDate; // Format as YYYY-MM-DD
   };
 
   useEffect(() => {
@@ -103,6 +113,12 @@ const ScheduleScreen = ({ route, navigation }) => {
       setAppointmentDate(defaultDate);
     }
   }, [appointment, initialDay]);
+
+  const handleDayChange = (newDay) => {
+    setSelectedDay(newDay);
+    const newDate = calculateDefaultDate(newDay);
+    setAppointmentDate(newDate);
+  };
 
   const handleSave = async () => {
     if (!startTime || !endTime || !appointmentDate || !selectedDay) {
@@ -255,7 +271,7 @@ const ScheduleScreen = ({ route, navigation }) => {
       key={day}
       style={styles.dropdownItem}
       onPress={() => {
-        setSelectedDay(day);
+        handleDayChange(day);
         setIsDropdownVisible(false);
       }}
     >
@@ -314,26 +330,20 @@ const ScheduleScreen = ({ route, navigation }) => {
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Day:</Text>
           <TouchableOpacity
-            style={styles.dropdownButton}
+            style={styles.input}
             onPress={() => setIsDropdownVisible(true)}
           >
-            <Text style={styles.dropdownButtonText}>{selectedDay}</Text>
-            <Ionicons name="chevron-down" size={24} color="#4a90e2" />
+            <Text>{selectedDay}</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Date:</Text>
-          <View style={styles.dateInputWrapper}>
-            <TextInput
-              style={styles.dateInput}
-              value={appointmentDate}
-              onChangeText={setAppointmentDate}
-              placeholder="YYYY-MM-DD"
-            />
-            <TouchableOpacity style={styles.todayButton} onPress={setTodayDate}>
-              <Text style={styles.todayButtonText}>Today</Text>
-            </TouchableOpacity>
-          </View>
+          <TextInput
+            style={styles.input}
+            value={appointmentDate}
+            onChangeText={setAppointmentDate}
+            placeholder="YYYY-MM-DD"
+          />
         </View>
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Client Name:</Text>
@@ -396,9 +406,20 @@ const ScheduleScreen = ({ route, navigation }) => {
         transparent={true}
         animationType="slide"
       >
-        <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <ScrollView>{days.map(renderDropdownItem)}</ScrollView>
+            {days.map((day) => (
+              <TouchableOpacity
+                key={day}
+                style={styles.modalItem}
+                onPress={() => {
+                  handleDayChange(day);
+                  setIsDropdownVisible(false);
+                }}
+              >
+                <Text>{day}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
       </Modal>
@@ -591,7 +612,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333",
   },
-  modalOverlay: {
+  modalContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
@@ -604,7 +625,7 @@ const styles = StyleSheet.create({
     width: "80%",
     maxHeight: "80%",
   },
-  dropdownItem: {
+  modalItem: {
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: "#e0e0e0",

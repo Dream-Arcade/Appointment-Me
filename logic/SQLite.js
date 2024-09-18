@@ -224,4 +224,17 @@ export const clearAllAppointments = () => {
   ]);
 };
 
+export const deleteAppointmentsForDay = (day) => {
+  return new Promise((resolve, reject) => {
+    activeDB.transaction((tx) => {
+      tx.executeSql(
+        "DELETE FROM appointments WHERE day = ?",
+        [day],
+        (_, result) => resolve(result),
+        (_, error) => reject(error)
+      );
+    });
+  });
+};
+
 // ... (keep other existing functions)

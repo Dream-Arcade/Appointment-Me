@@ -32,6 +32,7 @@ const Day = ({ route }) => {
     updateAppointments,
     clearAppointmentsForDay,
     clearAllAppointmentsAndRefresh,
+    refreshAppointments,
   } = useContext(AppointmentsContext);
 
   const appointments = appointmentsByDay[day] || [];
@@ -145,8 +146,8 @@ const Day = ({ route }) => {
 
   const clearAppointments = useCallback(() => {
     Alert.alert(
-      "Clear All Appointments",
-      "Are you sure you want to clear all appointments for this day?",
+      "Clear Appointments",
+      "Are you sure you want to clear appointments?",
       [
         {
           text: "Cancel",
@@ -155,18 +156,37 @@ const Day = ({ route }) => {
         {
           text: "Clear Day",
           onPress: async () => {
-            await clearAppointmentsForDay(day);
+            try {
+              await clearAppointmentsForDay(day);
+              await refreshAppointments();
+            } catch (error) {
+              console.error("Error clearing appointments for day:", error);
+              Alert.alert(
+                "Error",
+                "Failed to clear appointments for this day."
+              );
+            }
           },
         },
         {
           text: "Clear All Days",
           onPress: async () => {
-            await clearAllAppointmentsAndRefresh();
+            try {
+              await clearAllAppointmentsAndRefresh();
+            } catch (error) {
+              console.error("Error clearing all appointments:", error);
+              Alert.alert("Error", "Failed to clear all appointments.");
+            }
           },
         },
       ]
     );
-  }, [day, clearAppointmentsForDay, clearAllAppointmentsAndRefresh]);
+  }, [
+    day,
+    clearAppointmentsForDay,
+    clearAllAppointmentsAndRefresh,
+    refreshAppointments,
+  ]);
 
   const deleteAppointment = useCallback(
     (indexToDelete) => {
@@ -432,7 +452,7 @@ const Day = ({ route }) => {
                       style={styles.clearButton}
                       onPress={clearAppointments}
                     >
-                      <Text style={styles.buttonText}>Clear All</Text>
+                      <Text style={styles.buttonText}>Clear</Text>
                     </TouchableOpacity>
                   </View>
                 </>

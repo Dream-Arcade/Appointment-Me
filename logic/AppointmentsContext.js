@@ -250,6 +250,7 @@ export const AppointmentsProvider = ({ children }) => {
         await refreshAppointments();
       } catch (error) {
         console.error("Error clearing appointments for day:", error);
+        throw error; // Rethrow the error so it can be caught in the component
       }
     },
     [refreshAppointments]
