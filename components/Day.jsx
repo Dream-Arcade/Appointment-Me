@@ -38,6 +38,47 @@ const Day = ({ route }) => {
 
   const [isDrawerVisible, setIsDrawerVisible] = useState(false);
 
+  const calculateDefaultDate = (selectedDay) => {
+    const days = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const today = new Date();
+    const currentDayIndex = today.getDay();
+    const selectedDayIndex = days.indexOf(selectedDay);
+
+    let daysToAdd = selectedDayIndex - currentDayIndex;
+    if (daysToAdd < 0) daysToAdd += 7;
+
+    const defaultDate = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() + daysToAdd
+    );
+
+    const formattedDate = `${defaultDate.getFullYear()}-${String(
+      defaultDate.getMonth() + 1
+    ).padStart(2, "0")}-${String(defaultDate.getDate()).padStart(2, "0")}`;
+
+    console.log(
+      "Today's date:",
+      `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(
+        2,
+        "0"
+      )}-${String(today.getDate()).padStart(2, "0")}`
+    );
+    console.log("Current day:", days[currentDayIndex]);
+    console.log("Selected day:", selectedDay);
+    console.log("Calculated default date:", formattedDate);
+
+    return formattedDate; // Format as YYYY-MM-DD
+  };
+
   const handleSlotSelect = useCallback(
     (slot) => {
       if (
@@ -63,13 +104,25 @@ const Day = ({ route }) => {
           );
           setTempAppointment({ start: null, end: null });
         } else {
+          const calculatedDate = calculateDefaultDate(day);
+          const currentDateTime = new Date();
+          console.log(
+            "Current date and time when creating appointment:",
+            currentDateTime.toLocaleString()
+          );
+          console.log("Calculated date for appointment:", calculatedDate);
+
           const newAppointment = {
             start: tempAppointment.start,
             end: slot,
             day,
+            date: calculatedDate,
             clientName: "Client Name",
             clientInfo: "Additional Info",
+            status: "Active",
           };
+          console.log("New appointment being created:", newAppointment);
+
           if (isOverlapping(newAppointment)) {
             alert(
               "This appointment overlaps with another. Please choose another time."
@@ -82,6 +135,7 @@ const Day = ({ route }) => {
             updatedAppointments.push(newAppointment);
             updateAppointments(day, updatedAppointments);
             setTempAppointment({ start: null, end: null });
+            console.log("Appointment successfully created:", newAppointment);
           }
         }
       }
@@ -283,17 +337,20 @@ const Day = ({ route }) => {
   };
 
   const handleCustomAppointment = () => {
+    const calculatedDate = calculateDefaultDate(day);
     navigation.navigate("ScheduleScreen", {
       day,
       appointmentIndex: appointments.length,
       appointment: {
         start: "",
         end: "",
+        date: calculatedDate,
         clientName: "",
         clientPhone: "",
         clientEmail: "",
         clientNotes: "",
         isCustom: true,
+        status: "Active", // Ensure new appointments are set as active
       },
     });
   };

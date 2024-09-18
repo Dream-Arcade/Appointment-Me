@@ -1,17 +1,19 @@
-import React from "react";
+import React, { useContext } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from "react-native";
-import { useAppointments } from "../logic/AppointmentsContext";
+import { AppointmentsContext } from "../logic/AppointmentsContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
 const AppointmentSlots = () => {
-  const { appointmentsByDay, clearNullDayAppointments } = useAppointments();
+  const { appointmentsByDay, clearAllAppointmentsAndRefresh } =
+    useContext(AppointmentsContext);
   const navigation = useNavigation();
 
   if (!appointmentsByDay) {
@@ -43,7 +45,8 @@ const AppointmentSlots = () => {
         clientPhone: "",
         clientEmail: "",
         clientNotes: "",
-        isCustom: true,
+        isNew: true,
+        status: "Active", // Ensure new appointments are set as active
       },
     });
   };
@@ -51,6 +54,29 @@ const AppointmentSlots = () => {
   const hasAppointments = Object.values(appointmentsByDay).some(
     (appointments) => appointments && appointments.length > 0
   );
+
+  const handleClearAllAppointments = () => {
+    Alert.alert(
+      "Clear All Appointments",
+      "Are you sure you want to clear all active appointments?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Clear",
+          onPress: async () => {
+            await clearAllAppointmentsAndRefresh();
+            Alert.alert(
+              "Success",
+              "All active appointments have been cleared."
+            );
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <View style={styles.wholeView}>
@@ -124,6 +150,14 @@ const AppointmentSlots = () => {
       <TouchableOpacity style={styles.addButton} onPress={handleAddAppointment}>
         <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
+      {hasAppointments && (
+        <TouchableOpacity
+          style={styles.clearAllButton}
+          onPress={handleClearAllAppointments}
+        >
+          <Text style={styles.clearAllButtonText}>Clear All Appointments</Text>
+        </TouchableOpacity>
+      )}
       {appointmentsByDay["unassigned"] &&
         appointmentsByDay["unassigned"].length > 0 && (
           <TouchableOpacity
@@ -249,6 +283,19 @@ const styles = StyleSheet.create({
   },
   clearButtonText: {
     color: "white",
+    fontWeight: "bold",
+  },
+  clearAllButton: {
+    backgroundColor: "#dc3545",
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 20,
+    marginHorizontal: 20,
+  },
+  clearAllButtonText: {
+    color: "#ffffff",
+    fontSize: 16,
     fontWeight: "bold",
   },
 });

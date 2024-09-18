@@ -12,7 +12,11 @@ import {
 } from "react-native";
 import { AppointmentsContext } from "../../logic/AppointmentsContext";
 import { Ionicons } from "@expo/vector-icons";
-import { saveAppointment, updateAppointment } from "../../logic/SQLite";
+import {
+  saveAppointment,
+  updateAppointment,
+  getAppointments,
+} from "../../logic/SQLite";
 
 const ScheduleScreen = ({ route, navigation }) => {
   const { day: initialDay, appointmentIndex, appointment } = route.params || {};
@@ -32,16 +36,48 @@ const ScheduleScreen = ({ route, navigation }) => {
   const [selectedDay, setSelectedDay] = useState(initialDay);
 
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+  const [isNew, setIsNew] = useState(appointment?.isNew || false);
 
   const days = [
+    "Sunday",
     "Monday",
     "Tuesday",
     "Wednesday",
     "Thursday",
     "Friday",
     "Saturday",
-    "Sunday",
   ];
+
+  const calculateDefaultDate = (selectedDay) => {
+    const days = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const today = new Date();
+    const currentDayIndex = today.getDay();
+    const selectedDayIndex = days.indexOf(selectedDay);
+
+    let daysToAdd = selectedDayIndex - currentDayIndex;
+    if (daysToAdd < 0) daysToAdd += 7;
+
+    const defaultDate = new Date(today);
+    defaultDate.setDate(today.getDate() + daysToAdd);
+
+    console.log("Today's date:", today.toISOString().split("T")[0]);
+    console.log("Current day:", days[currentDayIndex]);
+    console.log("Selected day:", selectedDay);
+    console.log(
+      "Calculated default date:",
+      defaultDate.toISOString().split("T")[0]
+    );
+
+    return defaultDate.toISOString().split("T")[0]; // Format as YYYY-MM-DD
+  };
 
   useEffect(() => {
     if (appointment) {
@@ -53,13 +89,18 @@ const ScheduleScreen = ({ route, navigation }) => {
       setStartPeriod(startPeriodOnly || "AM");
       setEndTime(endTimeOnly || "");
       setEndPeriod(endPeriodOnly || "AM");
-      setAppointmentDate(appointment.date || "");
+      setAppointmentDate(appointment.date || calculateDefaultDate(initialDay));
       setClientName(appointment.clientName || "");
       setClientPhone(appointment.clientPhone || "");
       setClientEmail(appointment.clientEmail || "");
       setClientNotes(appointment.clientNotes || "");
       setStatus(appointment.status || "Active");
       setSelectedDay(appointment.day || initialDay);
+    } else {
+      // Set default date for new appointments
+      const defaultDate = calculateDefaultDate(initialDay);
+      console.log("Setting default date for new appointment:", defaultDate);
+      setAppointmentDate(defaultDate);
     }
   }, [appointment, initialDay]);
 
@@ -68,6 +109,13 @@ const ScheduleScreen = ({ route, navigation }) => {
       Alert.alert("Error", "Please enter start time, end time, date, and day.");
       return;
     }
+
+    const currentDateTime = new Date();
+    console.log(
+      "Current date and time when creating appointment:",
+      currentDateTime.toLocaleString()
+    );
+    console.log("Saving appointment with date:", appointmentDate);
 
     const updatedAppointment = {
       start: `${startTime} ${startPeriod}`,
@@ -81,30 +129,51 @@ const ScheduleScreen = ({ route, navigation }) => {
       status,
     };
 
+    console.log("Updated appointment object:", updatedAppointment);
+
     try {
-      if (appointment && appointment.id) {
-        await updateAppointment(appointment.id, updatedAppointment);
-      } else {
-        await saveAppointment(updatedAppointment);
-      }
+      // Check for duplicates
+      const existingAppointments = await getAppointments();
+      const isDuplicate = existingAppointments.some(
+        (app) =>
+          app.day === updatedAppointment.day &&
+          app.start === updatedAppointment.start &&
+          app.end === updatedAppointment.end &&
+          app.date === updatedAppointment.date &&
+          app.clientName === updatedAppointment.clientName &&
+          app.id !== appointment?.id // Exclude the current appointment when editing
+      );
 
-      // Remove the appointment from the old day if it was changed
-      if (initialDay !== selectedDay) {
-        const oldDayAppointments = appointmentsByDay[initialDay] || [];
-        const updatedOldDayAppointments = oldDayAppointments.filter(
-          (app) => app.id !== appointment?.id
+      if (isDuplicate) {
+        Alert.alert(
+          "Duplicate Appointment",
+          "An appointment with these details already exists."
         );
-        updateAppointments(initialDay, updatedOldDayAppointments);
+        return;
       }
 
-      // Update the appointments for the selected day
-      const dayAppointments = appointmentsByDay[selectedDay] || [];
-      const updatedDayAppointments = appointment?.id
-        ? dayAppointments.map((app) =>
-            app.id === appointment.id ? updatedAppointment : app
-          )
-        : [...dayAppointments, updatedAppointment];
-      updateAppointments(selectedDay, updatedDayAppointments);
+      let savedAppointment;
+      if (isNew) {
+        savedAppointment = await saveAppointment(updatedAppointment);
+      } else if (appointment && appointment.id) {
+        savedAppointment = await updateAppointment(
+          appointment.id,
+          updatedAppointment
+        );
+      }
+
+      console.log("Saved appointment:", savedAppointment);
+
+      if (savedAppointment) {
+        // Update the appointments for the selected day
+        const dayAppointments = appointmentsByDay[selectedDay] || [];
+        const updatedDayAppointments = isNew
+          ? [...dayAppointments, savedAppointment]
+          : dayAppointments.map((app) =>
+              app.id === appointment?.id ? savedAppointment : app
+            );
+        updateAppointments(selectedDay, updatedDayAppointments);
+      }
 
       await refreshAppointments();
       navigation.goBack();
@@ -125,8 +194,8 @@ const ScheduleScreen = ({ route, navigation }) => {
   };
 
   const handleLogAppointment = async () => {
-    if (!startTime || !endTime || !appointmentDate) {
-      Alert.alert("Error", "Please enter start time, end time, and date.");
+    if (!startTime || !endTime || !appointmentDate || !selectedDay) {
+      Alert.alert("Error", "Please enter start time, end time, date, and day.");
       return;
     }
 
@@ -143,8 +212,30 @@ const ScheduleScreen = ({ route, navigation }) => {
     };
 
     try {
+      // Check if an appointment with the same details already exists
+      const existingAppointments = await getAppointments();
+      const isDuplicate = existingAppointments.some(
+        (app) =>
+          app.day === appointmentToLog.day &&
+          app.start === appointmentToLog.start &&
+          app.end === appointmentToLog.end &&
+          app.date === appointmentToLog.date &&
+          app.clientName === appointmentToLog.clientName
+      );
+
+      if (isDuplicate) {
+        Alert.alert(
+          "Duplicate Appointment",
+          "This appointment has already been logged."
+        );
+        return;
+      }
+
+      // If not a duplicate, proceed with saving the appointment
       await saveAppointment(appointmentToLog);
+      await refreshAppointments();
       Alert.alert("Success", "Appointment logged successfully!");
+      navigation.goBack();
     } catch (error) {
       console.error("Error logging appointment:", error);
       Alert.alert("Error", "Failed to log appointment. Please try again.");
